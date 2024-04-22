@@ -30,3 +30,9 @@ type TablesCache struct {
 	RmapItem    []RmapItem
 	LeftTargets [][][]uint32
 }
+
+type BitSlice struct {
+	HeadGap byte
+	D       []byte
+	TailGap byte
+}

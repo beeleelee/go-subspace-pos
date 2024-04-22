@@ -79,7 +79,7 @@ func calculate_left_targets() [][][]uint32 {
 	return res
 }
 
-func calculate_left_target_on_demand(parity, r, m uint) uint {
+func calculate_left_target_on_demand(parity, r, m uint32) uint32 {
 	c := r / PARAM_C
 	return ((c+m)%PARAM_B)*PARAM_C + (((2*m+parity)*(2*m+parity) + r) % PARAM_C)
 }
@@ -95,4 +95,105 @@ func ComputeF1(k byte, x uint32, partialY []byte, partialYOffset uint) (y uint32
 	preExt := x >> (k - PARAM_EXT)
 	preExtMask = MAXU32 >> (U32BITS - PARAM_EXT)
 	return (preY & preYMask) | (preExt & preExtMask)
+}
+
+func findMatches(left_bucket_ys []uint32, left_bucket_start_postion uint32, right_bucket_ys []uint32, right_bucket_start_position uint32, left_tagets [][][]uint32) (ms []Match) {
+	rmap := make([]RmapItem, PARAM_BC)
+	if len(left_bucket_ys) == 0 || len(right_bucket_ys) == 0 {
+		return
+	}
+	base := (right_bucket_ys[0] / PARAM_BC) * PARAM_BC
+	for i, y := range right_bucket_ys {
+		rightPosition := uint32(i) + right_bucket_start_position
+		r := y - base
+		if rmap[r].Count == 0 {
+			rmap[r].StartPosition = rightPosition
+		}
+		rmap[r].Count += 1
+	}
+	base = base - PARAM_BC
+	parity := (left_bucket_ys[0] / PARAM_BC) % 2
+	ltargets := left_tagets[parity]
+	ms = make([]Match, 0)
+	for i, y := range left_bucket_ys {
+		leftPosition := uint32(i) + left_bucket_start_postion
+		r := y - base
+		targets := ltargets[r]
+		for m := 0; m < PARAM_M; m++ {
+			rt := targets[m]
+			ritem := rmap[rt]
+			if ritem.Count > 0 {
+				for rightPosition := ritem.StartPosition; rightPosition < ritem.StartPosition+ritem.Count; rightPosition++ {
+					ms = append(ms, Match{
+						LeftPosition:  leftPosition,
+						LeftY:         y,
+						RightPosition: rightPosition,
+					})
+				}
+			}
+		}
+	}
+	return
+}
+
+func NumMatches(left_y, right_y uint32) (matches uint) {
+	right_r := right_y % PARAM_BC
+	parity := (left_y / PARAM_BC) % 2
+	left_r := left_y % PARAM_BC
+
+	for m := 0; m < PARAM_M; m++ {
+		r_target := calculate_left_target_on_demand(parity, left_r, uint32(m))
+		if r_target == right_r {
+			matches++
+		}
+	}
+	return
+}
+
+func ComputeFN(k, tn, pvtn byte, y uint32, left_metadata, right_metadata []byte) (cy uint32, cm []byte) {
+	//parentMetadataBits := MetadataSizeBits(k, pvtn)
+	ySizeBits := YSizeBits(k)
+	mdSizeBits := MetadataSizeBits(k, pvtn)
+	yBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(yBytes, y)
+	ySizeBytes := divCeil(ySizeBits, U8BITS)
+	ySlice := BitSlice{
+		HeadGap: byte(ySizeBits % U8BITS),
+		D:       yBytes[len(yBytes)-int(ySizeBytes):],
+	}
+	lmSlice := BitSlice{
+		HeadGap: byte(mdSizeBits % U8BITS),
+		D:       left_metadata,
+	}
+	rmSlice := BitSlice{
+		HeadGap: byte(mdSizeBits % U8BITS),
+		D:       right_metadata,
+	}
+	elements := []BitSlice{
+		ySlice,
+		lmSlice,
+		rmSlice,
+	}
+	ot := bitsConcatLeft(elements)
+	hash := blake3Hash(ot.D)
+
+	cy = binary.BigEndian.Uint32(hash[:4])
+
+	if tn < 4 {
+		cm = bitsConcatRight(elements[1:]).D
+	} else if mdSizeBits > 0 {
+		mdsb := MetadataSizeBits(k, tn)
+		start := ySizeBits / U8BITS
+		headGap := ySizeBits % U8BITS
+		h := hash[start : start+divCeil(mdsb-headGap, U8BITS)]
+		cm = bitsConcatRight([]BitSlice{
+			{
+				HeadGap: byte(headGap),
+				D:       h,
+				TailGap: byte(uint(len(h)*U8BITS) - mdsb - headGap),
+			},
+		}).D
+	}
+
+	return
 }
