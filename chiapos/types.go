@@ -36,3 +36,28 @@ type BitSlice struct {
 	D       []byte
 	TailGap byte
 }
+
+type table1 struct {
+	k  byte
+	ys []uint32
+	xs []uint32
+}
+
+type t1Item struct {
+	x uint32
+	y uint32
+}
+
+type tablen struct {
+	k         byte
+	n         byte
+	ys        []uint32
+	positions [][]uint32
+	metadata  [][]byte
+}
+
+type tnItem struct {
+	y        uint32
+	position []uint32
+	metadata []byte
+}

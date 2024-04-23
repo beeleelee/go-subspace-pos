@@ -2,6 +2,7 @@ package chiapos
 
 import (
 	"encoding/binary"
+	"sort"
 
 	"github.com/chocolatkey/chacha8"
 )
@@ -196,4 +197,127 @@ func ComputeFN(k, tn, pvtn byte, y uint32, left_metadata, right_metadata []byte)
 	}
 
 	return
+}
+
+func matchToResult(k, tn, pvtn byte, last_table Table, m Match) *tnItem {
+	left_metadata := last_table.Metadata(m.LeftPosition)
+	right_metadata := last_table.Metadata(m.RightPosition)
+	y, metadata := ComputeFN(k, tn, pvtn, m.LeftY, left_metadata, right_metadata)
+	return &tnItem{
+		y:        y,
+		position: []uint32{m.LeftPosition, m.RightPosition},
+		metadata: metadata,
+	}
+}
+
+func matchAndComputFn(k, tn, pvtn byte, last_table Table, left_bucket, right_bucket Bucket, left_targets [][][]uint32) (results_table []*tnItem) {
+	if left_bucket.Size == 0 || right_bucket.Size == 0 {
+		return
+	}
+	results_table = make([]*tnItem, 0)
+	ys := last_table.YS()
+	matches := findMatches(ys[left_bucket.StartPosition:left_bucket.StartPosition+left_bucket.Size], left_bucket.StartPosition, ys[right_bucket.StartPosition:right_bucket.StartPosition+right_bucket.Size], right_bucket.StartPosition, left_targets)
+	for _, m := range matches {
+		results_table = append(results_table, matchToResult(k, tn, pvtn, last_table, m))
+	}
+	return
+}
+
+func CreateTable1(k byte, seed []byte) Table {
+	len := uint32(1 << k)
+	partialYS := partial_ys(k, seed)
+	tmp := make([]t1Item, len)
+	t1 := &table1{
+		k:  k,
+		ys: make([]uint32, len),
+		xs: make([]uint32, len),
+	}
+	var x uint32
+	for ; x < len; x++ {
+		y := ComputeF1(k, x, partialYS, uint(k)*uint(x))
+		tmp[x] = t1Item{x, y}
+	}
+	sort.Slice(tmp, func(i, j int) bool {
+		return tmp[i].y < tmp[j].y
+	})
+	for i, t1Item := range tmp {
+		t1.xs[i] = t1Item.x
+		t1.ys[i] = t1Item.y
+	}
+	return t1
+}
+
+func (t *table1) YS() []uint32 {
+	return t.ys
+}
+
+func (t *table1) Position(pos uint32) []uint32 {
+	return nil
+}
+
+func (t *table1) Metadata(pos uint32) []byte {
+	x := t.xs[pos]
+	n := int(MetadataSizeBytes(t.k, 1))
+	bs := make([]byte, 4)
+	binary.BigEndian.PutUint32(bs, x)
+	return bs[len(bs)-n:]
+}
+
+func CreateTablen(k, tn, pvtn byte, last_table Table, cache *TablesCache) Table {
+	buckets := cache.Buckets
+	bucket := &Bucket{}
+
+	for i, y := range last_table.YS() {
+		buketIndex := y / PARAM_BC
+		if buketIndex == bucket.BucketIndex {
+			bucket.Size += 1
+			continue
+		}
+		buckets = append(buckets, *bucket)
+		bucket = &Bucket{
+			BucketIndex:   buketIndex,
+			StartPosition: uint32(i),
+			Size:          1,
+		}
+	}
+	buckets = append(buckets, *bucket)
+	num_values := 1 << k
+	tmp := make([]*tnItem, 0, num_values)
+	if len(buckets) < 2 {
+		return &tablen{}
+	}
+	for i := 0; i < len(buckets)-1; i++ {
+		left_bucket := buckets[i]
+		right_bucket := buckets[i+1]
+		tmp = append(tmp, matchAndComputFn(k, tn, pvtn, last_table, left_bucket, right_bucket, cache.LeftTargets)...)
+	}
+	sort.Slice(tmp, func(i, j int) bool {
+		return tmp[i].y < tmp[j].y
+	})
+	tmpLen := len(tmp)
+	table := &tablen{
+		k:         k,
+		n:         tn,
+		ys:        make([]uint32, tmpLen),
+		positions: make([][]uint32, tmpLen),
+		metadata:  make([][]byte, tmpLen),
+	}
+	for i, item := range tmp {
+		table.ys[i] = item.y
+		table.positions[i] = item.position
+		table.metadata[i] = item.metadata
+	}
+	return table
+}
+
+func (t *tablen) YS() []uint32 {
+	return t.ys
+}
+
+func (t *tablen) Position(pos uint32) []uint32 {
+	return t.positions[pos]
+}
+
+func (t *tablen) Metadata(pos uint32) []byte {
+	return t.metadata[pos]
 }
