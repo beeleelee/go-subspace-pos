@@ -11,6 +11,7 @@ const U8BITS = 8
 const U32BITS = U8BITS * 4
 const U64BITS = U8BITS * 8
 const MAXU32 = 0xFFFFFFFF
+
 const PARAM_EXT = 6
 const PARAM_M = 1 << PARAM_EXT
 const PARAM_B = 119
@@ -153,23 +154,37 @@ func NumMatches(left_y, right_y uint32) (matches uint) {
 
 func ComputeFN(k, tn, pvtn byte, y uint32, left_metadata, right_metadata []byte) (cy uint32, cm []byte) {
 	//parentMetadataBits := MetadataSizeBits(k, pvtn)
+	// fmt.Printf("y: %d, left_m: %v, right_m: %v\n", y, left_metadata, right_metadata)
 	ySizeBits := YSizeBits(k)
 	mdSizeBits := MetadataSizeBits(k, pvtn)
 	yBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(yBytes, y)
 	ySizeBytes := divCeil(ySizeBits, U8BITS)
+	headGap := ySizeBits % U8BITS
+	if headGap > 0 {
+		headGap = U8BITS - headGap
+	}
 	ySlice := BitSlice{
-		HeadGap: byte(ySizeBits % U8BITS),
+		HeadGap: byte(headGap),
 		D:       yBytes[len(yBytes)-int(ySizeBytes):],
 	}
+	// fmt.Println("^^^^^^^^^")
+	// fmt.Println(ySlice)
+	headGap = mdSizeBits % U8BITS
+	if headGap > 0 {
+		headGap = U8BITS - headGap
+	}
 	lmSlice := BitSlice{
-		HeadGap: byte(mdSizeBits % U8BITS),
+		HeadGap: byte(headGap),
 		D:       left_metadata,
 	}
+	// fmt.Println(lmSlice)
 	rmSlice := BitSlice{
-		HeadGap: byte(mdSizeBits % U8BITS),
+		HeadGap: byte(headGap),
 		D:       right_metadata,
 	}
+	// fmt.Println(rmSlice)
+	// fmt.Println("--------")
 	elements := []BitSlice{
 		ySlice,
 		lmSlice,
@@ -177,23 +192,36 @@ func ComputeFN(k, tn, pvtn byte, y uint32, left_metadata, right_metadata []byte)
 	}
 	ot := bitsConcatLeft(elements)
 	hash := blake3Hash(ot.D)
+	// if tn == 7 {
+	// 	fmt.Printf("y: %d, lm: %v, rm: %v, cat: %v\nhash: %v\n", y, left_metadata, right_metadata, ot.D, hash)
+	// }
 
 	cy = binary.BigEndian.Uint32(hash[:4])
-
+	cy = cy >> (U32BITS - ySizeBits)
+	// if tn == 7 {
+	// 	fmt.Printf("%d from hash %v\n", cy, hash[:4])
+	// }
+	mdsb := MetadataSizeBits(k, tn)
 	if tn < 4 {
 		cm = bitsConcatRight(elements[1:]).D
-	} else if mdSizeBits > 0 {
-		mdsb := MetadataSizeBits(k, tn)
+	} else if mdsb > 0 {
 		start := ySizeBits / U8BITS
 		headGap := ySizeBits % U8BITS
-		h := hash[start : start+divCeil(mdsb-headGap, U8BITS)]
-		cm = bitsConcatRight([]BitSlice{
+		h := hash[start : start+divCeil(mdsb+headGap, U8BITS)]
+		s := []BitSlice{
 			{
 				HeadGap: byte(headGap),
 				D:       h,
 				TailGap: byte(uint(len(h)*U8BITS) - mdsb - headGap),
 			},
-		}).D
+		}
+		// if tn == 7 {
+		// 	fmt.Printf("%v\n", s)
+		// }
+		cm = bitsConcatRight(s).D
+		// if tn == 7 {
+		// 	fmt.Printf("ySizeBits: %d, mdsb: %d,  h: %v\ncm: %v\n", ySizeBits, mdsb, h, cm)
+		// }
 	}
 
 	return
@@ -214,10 +242,16 @@ func matchAndComputFn(k, tn, pvtn byte, last_table Table, left_bucket, right_buc
 	if left_bucket.Size == 0 || right_bucket.Size == 0 {
 		return
 	}
+	if left_bucket.BucketIndex+1 != right_bucket.BucketIndex {
+		return
+	}
 	results_table = make([]*tnItem, 0)
 	ys := last_table.YS()
 	matches := findMatches(ys[left_bucket.StartPosition:left_bucket.StartPosition+left_bucket.Size], left_bucket.StartPosition, ys[right_bucket.StartPosition:right_bucket.StartPosition+right_bucket.Size], right_bucket.StartPosition, left_targets)
 	for _, m := range matches {
+		// if tn == 7 {
+		// 	fmt.Println(m)
+		// }
 		results_table = append(results_table, matchToResult(k, tn, pvtn, last_table, m))
 	}
 	return
@@ -289,6 +323,8 @@ func CreateTablen(k, tn, pvtn byte, last_table Table, cache *TablesCache) Table 
 	for i := 0; i < len(buckets)-1; i++ {
 		left_bucket := buckets[i]
 		right_bucket := buckets[i+1]
+		// fmt.Println(left_bucket)
+		// fmt.Println(right_bucket)
 		tmp = append(tmp, matchAndComputFn(k, tn, pvtn, last_table, left_bucket, right_bucket, cache.LeftTargets)...)
 	}
 	sort.Slice(tmp, func(i, j int) bool {

@@ -101,3 +101,38 @@ func TestRC(t *testing.T) {
 	fmt.Println(bytesz)
 	t.Fail()
 }
+
+func TestTables(t *testing.T) {
+	k := byte(20)
+	seed := []byte{
+		21, 185, 23, 119, 214, 189, 172, 168,
+		255, 193, 47, 112, 202, 51, 192, 31,
+		33, 167, 102, 81, 207, 18, 55, 9,
+		77, 234, 158, 72, 106, 171, 137, 229,
+	}
+	t1 := CreateTable1(k, seed)
+	t1ys := t1.YS()
+	fmt.Printf("t1 %d %v\n", len(t1ys), t1ys[:4])
+	cache := &TablesCache{
+		LeftTargets: calculate_left_targets(),
+	}
+	t2 := CreateTablen(k, 2, 1, t1, cache)
+	t2ys := t2.YS()
+	fmt.Printf("t2 %d %v\n", len(t2ys), t2ys[:4])
+	t3 := CreateTablen(k, 3, 2, t2, cache)
+	t3ys := t3.YS()
+	fmt.Printf("t3 %d %v\n", len(t3ys), t3ys[:4])
+	t4 := CreateTablen(k, 4, 3, t3, cache)
+	t4ys := t4.YS()
+	fmt.Printf("t4 %d %v\n", len(t4ys), t4ys[:4])
+	t5 := CreateTablen(k, 5, 4, t4, cache)
+	t5ys := t5.YS()
+	fmt.Printf("t5 %d %v\n", len(t5ys), t5ys[:4])
+	t6 := CreateTablen(k, 6, 5, t5, cache)
+	t6ys := t6.YS()
+	fmt.Printf("t6 %d %v\n", len(t6ys), t6ys[:4])
+	t7 := CreateTablen(k, 7, 6, t6, cache)
+	t7ys := t7.YS()
+	fmt.Printf("t7 %d %v\n", len(t7ys), t7ys[:4])
+	t.Fail()
+}
