@@ -151,7 +151,7 @@ func bsearch(size int, f func(int) int) int {
 	left := 0
 	right := size
 	for left < right {
-		mid := left + size/2
+		mid := int(uint(left+right) >> 1)
 		cmp := f(mid)
 		if cmp == 0 {
 			return mid
@@ -160,7 +160,6 @@ func bsearch(size int, f func(int) int) int {
 		} else {
 			right = mid
 		}
-		size = right - left
 	}
 	return left
 }

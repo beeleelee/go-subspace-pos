@@ -139,7 +139,7 @@ func TestTables(t *testing.T) {
 
 func TestSortSearch(t *testing.T) {
 	list := []uint32{0, 1, 1, 2, 3, 5, 5, 5, 6, 7, 8, 8, 8, 8, 9}
-	idx := bsu32(list, 8)
+	idx := bsu32(list, 5)
 	fmt.Println(idx)
 	t.Fail()
 }
@@ -154,7 +154,7 @@ func TestB4(t *testing.T) {
 
 	cache := NewTablesCache()
 	table := NewTableGeneric(17, seed, cache)
-	challengeIndex := uint32(212783992)
+	challengeIndex := uint32(337137887)
 	// fmt.Printf("seed: %v\nchallengeIndex: %d\n", seed, challengeIndex)
 	challenge := make([]byte, 32)
 	binary.LittleEndian.PutUint32(challenge[:4], challengeIndex)
