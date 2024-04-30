@@ -136,3 +136,36 @@ func TestTables(t *testing.T) {
 	fmt.Printf("t7 %d %v\n", len(t7ys), t7ys[:4])
 	t.Fail()
 }
+
+func TestSortSearch(t *testing.T) {
+	list := []uint32{0, 1, 1, 2, 3, 5, 5, 5, 6, 7, 8, 8, 8, 8, 9}
+	idx := bsu32(list, 8)
+	fmt.Println(idx)
+	t.Fail()
+}
+
+func TestB4(t *testing.T) {
+	seed := []byte{
+		1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1,
+	}
+
+	cache := NewTablesCache()
+	table := NewTableGeneric(17, seed, cache)
+	challengeIndex := uint32(212783992)
+	// fmt.Printf("seed: %v\nchallengeIndex: %d\n", seed, challengeIndex)
+	challenge := make([]byte, 32)
+	binary.LittleEndian.PutUint32(challenge[:4], challengeIndex)
+	// fmt.Printf("challenge: %v\n", challenge)
+	proof, _ := table.FindProof(challenge)
+	fmt.Printf("proof %v\n", proof)
+
+	t.Fail()
+}
+
+// 955453486  1 proof
+// 1378873433 3 proof
+// 3501970825
+// 3259531167

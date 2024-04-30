@@ -281,6 +281,10 @@ func CreateTable1(k byte, seed []byte) Table {
 	return t1
 }
 
+func (t *table1) XS() []uint32 {
+	return t.xs
+}
+
 func (t *table1) YS() []uint32 {
 	return t.ys
 }
@@ -344,6 +348,10 @@ func CreateTablen(k, tn, pvtn byte, last_table Table, cache *TablesCache) Table 
 		table.metadata[i] = item.metadata
 	}
 	return table
+}
+
+func (t *tablen) XS() []uint32 {
+	return nil
 }
 
 func (t *tablen) YS() []uint32 {

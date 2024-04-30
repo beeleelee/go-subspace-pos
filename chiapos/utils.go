@@ -146,3 +146,34 @@ func bitsConcatRight(bs []BitSlice) (ot BitSlice) {
 	}
 	return
 }
+
+func bsearch(size int, f func(int) int) int {
+	left := 0
+	right := size
+	for left < right {
+		mid := left + size/2
+		cmp := f(mid)
+		if cmp == 0 {
+			return mid
+		} else if cmp < 0 {
+			left = mid + 1
+		} else {
+			right = mid
+		}
+		size = right - left
+	}
+	return left
+}
+
+func bsu32(list []uint32, x uint32) int {
+	return bsearch(len(list), func(i int) int {
+		y := list[i]
+		if y == x {
+			return 0
+		} else if y < x {
+			return -1
+		} else {
+			return 1
+		}
+	})
+}
