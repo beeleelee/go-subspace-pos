@@ -12,43 +12,31 @@ func PickPosition(pos []uint32, last_5_challenge_bits, table_number byte) uint32
 }
 
 type TableGeneric struct {
-	k      byte
-	Table1 Table
-	Table2 Table
-	Table3 Table
-	Table4 Table
-	Table5 Table
-	Table6 Table
-	Table7 Table
+	k  byte
+	TS [7]*table
 }
 
 func NewTableGeneric(k byte, seed []byte, cache *TablesCache) *TableGeneric {
 	t1 := CreateTable1(k, seed)
-	t2 := CreateTablen(k, 2, 1, t1, cache)
-	t3 := CreateTablen(k, 3, 2, t2, cache)
-	t4 := CreateTablen(k, 4, 3, t3, cache)
-	t5 := CreateTablen(k, 5, 4, t4, cache)
-	t6 := CreateTablen(k, 6, 5, t5, cache)
-	t7 := CreateTablen(k, 7, 6, t6, cache)
+	t2 := CreateTableN(k, 2, 1, t1, cache)
+	t3 := CreateTableN(k, 3, 2, t2, cache)
+	t4 := CreateTableN(k, 4, 3, t3, cache)
+	t5 := CreateTableN(k, 5, 4, t4, cache)
+	t6 := CreateTableN(k, 6, 5, t5, cache)
+	t7 := CreateTableN(k, 7, 6, t6, cache)
 	return &TableGeneric{
-		k:      k,
-		Table1: t1,
-		Table2: t2,
-		Table3: t3,
-		Table4: t4,
-		Table5: t5,
-		Table6: t6,
-		Table7: t7,
+		k:  k,
+		TS: [7]*table{t1, t2, t3, t4, t5, t6, t7},
 	}
 }
 
 func (tg *TableGeneric) FindProof(chalenge []byte) (proof []byte, found bool) {
-	ys := tg.Table7.YS()
+	t7 := tg.TS[6]
 	firstKChallengeBits := binary.BigEndian.Uint32(chalenge[:4]) >> (U32BITS - int(tg.k))
-
+	t7Len := len(t7.Items)
 	// fmt.Printf("ys size: %d\nfirstKChallengeBits: %d\n", len(ys), firstKChallengeBits)
-	pos := uint32(bsearch(len(ys), func(i int) int {
-		y := ys[i] >> PARAM_EXT
+	pos := uint32(bsearch(t7Len, func(i int) int {
+		y := t7.Items[i].y >> PARAM_EXT
 		if y == firstKChallengeBits {
 			return 0
 		} else if y < firstKChallengeBits {
@@ -59,23 +47,22 @@ func (tg *TableGeneric) FindProof(chalenge []byte) (proof []byte, found bool) {
 	}))
 	// fmt.Printf("%v\n", ys[pos-3:pos+3])
 	// fmt.Printf("search pos: %d\n", pos)
-	for ; pos < uint32(len(ys)); pos++ {
-		y := ys[pos]
+	for ; pos < uint32(t7Len); pos++ {
+		y := t7.Items[pos].y
 		y = y >> PARAM_EXT
 		if y > firstKChallengeBits {
 			break
 		}
 		if y == firstKChallengeBits {
 			// fmt.Printf("match pos: %d, y-: %d, y: %d\n", pos, y, ys[pos])
-			xs := tg.Table1.XS()
 			choosedxs := make([]uint32, 0, 64)
-			for _, pos6 := range tg.Table7.Position(pos) {
-				for _, pos5 := range tg.Table6.Position(pos6) {
-					for _, pos4 := range tg.Table5.Position(pos5) {
-						for _, pos3 := range tg.Table4.Position(pos4) {
-							for _, pos2 := range tg.Table3.Position(pos3) {
-								for _, pos1 := range tg.Table2.Position(pos2) {
-									choosedxs = append(choosedxs, xs[pos1])
+			for _, pos6 := range tg.TS[6].Position(pos) {
+				for _, pos5 := range tg.TS[5].Position(pos6) {
+					for _, pos4 := range tg.TS[4].Position(pos5) {
+						for _, pos3 := range tg.TS[3].Position(pos4) {
+							for _, pos2 := range tg.TS[2].Position(pos3) {
+								for _, pos1 := range tg.TS[1].Position(pos2) {
+									choosedxs = append(choosedxs, tg.TS[0].Items[pos1].x)
 								}
 							}
 						}

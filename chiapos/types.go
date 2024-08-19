@@ -2,7 +2,7 @@ package chiapos
 
 func NewTablesCache() *TablesCache {
 	return &TablesCache{
-		Buckets:     make([]Bucket, 0),
+		Buckets:     make([]Bucket, 0, MAX_BUCKET_SIZE),
 		RmapItem:    make([]RmapItem, 0),
 		LeftTargets: calculate_left_targets(),
 	}
@@ -28,7 +28,7 @@ type RmapItem struct {
 type TablesCache struct {
 	Buckets     []Bucket
 	RmapItem    []RmapItem
-	LeftTargets [][][]uint32
+	LeftTargets []uint32
 }
 
 type BitSlice struct {
@@ -37,27 +37,22 @@ type BitSlice struct {
 	TailGap byte
 }
 
-type table1 struct {
-	k  byte
-	ys []uint32
-	xs []uint32
+type table struct {
+	n     byte
+	Items []tItem
 }
 
-type t1Item struct {
-	x uint32
-	y uint32
-}
-
-type tablen struct {
-	k         byte
-	n         byte
-	ys        []uint32
-	positions [][]uint32
-	metadata  [][]byte
-}
-
-type tnItem struct {
+type tItem struct {
+	x        uint32
 	y        uint32
 	position []uint32
 	metadata []byte
+}
+
+func (t *table) YS() []uint32 {
+	r := make([]uint32, len(t.Items))
+	for i, item := range t.Items {
+		r[i] = item.y
+	}
+	return r
 }
