@@ -45,7 +45,7 @@ func (tg *TableGeneric) FindProof(chalenge []byte) (proof []byte, found bool) {
 			return 1
 		}
 	}))
-	// fmt.Printf("%v\n", ys[pos-3:pos+3])
+
 	// fmt.Printf("search pos: %d\n", pos)
 	for ; pos < uint32(t7Len); pos++ {
 		y := t7.Items[pos].y
@@ -86,6 +86,7 @@ func (tg *TableGeneric) FindProof(chalenge []byte) (proof []byte, found bool) {
 			}
 			proof = bitsConcatLeft(bslices).D
 			found = true
+			// fmt.Println(proof)
 			break
 		}
 	}

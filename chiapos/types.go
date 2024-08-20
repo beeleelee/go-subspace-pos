@@ -2,8 +2,6 @@ package chiapos
 
 func NewTablesCache() *TablesCache {
 	return &TablesCache{
-		Buckets:     make([]Bucket, 0, MAX_BUCKET_SIZE),
-		RmapItem:    make([]RmapItem, 0),
 		LeftTargets: calculate_left_targets(),
 	}
 }
@@ -26,8 +24,6 @@ type RmapItem struct {
 }
 
 type TablesCache struct {
-	Buckets     []Bucket
-	RmapItem    []RmapItem
 	LeftTargets []uint32
 }
 

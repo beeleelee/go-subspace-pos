@@ -331,7 +331,7 @@ func (t *table) Metadata(pos uint32) []byte {
 }
 
 func CreateTableN(k, tn, pvtn byte, last_table *table, cache *TablesCache) *table {
-	buckets := cache.Buckets[:0]
+	buckets := make([]Bucket, 0, MAX_BUCKET_SIZE)
 	bucket := &Bucket{}
 
 	for i, item := range last_table.Items {

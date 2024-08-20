@@ -116,7 +116,6 @@ func TestTables(t *testing.T) {
 	t1xs := t1.XS()
 	fmt.Printf("t1xs %d %v\n", len(t1xs), t1xs[:8])
 	cache := &TablesCache{
-		Buckets:     make([]Bucket, 0, MAX_BUCKET_SIZE),
 		LeftTargets: calculate_left_targets(),
 	}
 	t2 := CreateTableN(k, 2, 1, t1, cache)
@@ -148,39 +147,41 @@ func TestSortSearch(t *testing.T) {
 }
 
 func TestB4(t *testing.T) {
-	k := byte(17)
+	k := byte(16)
 	seed := []byte{
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
 	}
-	ys := partial_ys(k, seed)
+	// ys := partial_ys(k, seed)
 	// fmt.Println(ys[:], len(ys))
-	var x uint32
-	for ; x < 32; x++ {
-		y := ComputeF1(k, x, ys, uint(k)*uint(x))
-		fmt.Printf("x: %d, y: %d\n", x, y)
-	}
+	// var x uint32
+	// for ; x < 32; x++ {
+	// 	y := ComputeF1(k, x, ys, uint(k)*uint(x))
+	// 	fmt.Printf("x: %d, y: %d\n", x, y)
+	// }
 	cache := NewTablesCache()
 
 	table := NewTableGeneric(k, seed, cache)
-	t1ys := table.TS[0].YS()
-	fmt.Println(t1ys[:4], len(t1ys))
+	// t1ys := table.TS[0].YS()
+	// fmt.Println(t1ys[:4], len(t1ys))
 	// t2ys := table.TS[1].YS()
 	// fmt.Println(t2ys, len(t2ys))
-	challengeIndex := uint32(337137887)
+	challengeIndex := uint32(800)
 	// fmt.Printf("seed: %v\nchallengeIndex: %d\n", seed, challengeIndex)
 	challenge := make([]byte, 32)
 	binary.LittleEndian.PutUint32(challenge[:4], challengeIndex)
 	// fmt.Printf("challenge: %v\n", challenge)
+
 	proof, _ := table.FindProof(challenge)
 	fmt.Printf("proof %v\n", proof)
 
 	t.Fail()
 }
 
-// 955453486  1 proof
-// 1378873433 3 proof
-// 3501970825
-// 3259531167
+// k16 404  3 proof
+// k16 521 3 proof
+// k16 568 6 proof
+// k16 700 3 proof
+// k16 800 3 proof
