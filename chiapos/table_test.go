@@ -103,23 +103,25 @@ func TestRC(t *testing.T) {
 }
 
 func TestTables(t *testing.T) {
-	k := byte(17)
+	k := byte(20)
 	seed := []byte{
-		21, 185, 23, 119, 214, 189, 172, 168,
+		21, 185, 27, 119, 214, 189, 172, 168,
 		255, 193, 47, 112, 202, 51, 192, 31,
 		33, 167, 102, 81, 207, 18, 55, 9,
-		77, 234, 158, 72, 106, 171, 137, 229,
+		77, 234, 158, 72, 121, 171, 137, 229,
 	}
 	t1 := CreateTable1(k, seed)
 	t1ys := t1.YS()
-	fmt.Printf("t1 %d %v\n", len(t1ys), t1ys[:4])
+	fmt.Printf("t1ys %d %v\n", len(t1ys), t1ys[:8])
+	t1xs := t1.XS()
+	fmt.Printf("t1xs %d %v\n", len(t1xs), t1xs[:8])
 	cache := &TablesCache{
 		Buckets:     make([]Bucket, 0, MAX_BUCKET_SIZE),
 		LeftTargets: calculate_left_targets(),
 	}
 	t2 := CreateTableN(k, 2, 1, t1, cache)
 	t2ys := t2.YS()
-	fmt.Printf("t2 %d %v\n", len(t2ys), t2ys[:4])
+	fmt.Printf("t2 %d %v\n", len(t2ys), t2ys[:8])
 	t3 := CreateTableN(k, 3, 2, t2, cache)
 	t3ys := t3.YS()
 	fmt.Printf("t3 %d %v\n", len(t3ys), t3ys[:4])

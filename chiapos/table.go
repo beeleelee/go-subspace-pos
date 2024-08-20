@@ -74,13 +74,13 @@ func partial_ys(k byte, seed []byte) []byte {
 func calculate_left_targets() []uint32 {
 	res := make([]uint32, 2*PARAM_BC*PARAM_M)
 	var parity uint32
-	for parity = 0; parity <= 1; parity++ {
+	for parity = 0; parity < 2; parity++ {
 		var r uint32
 		for r = 0; r < PARAM_BC; r++ {
 			c := r / PARAM_C
 			var m uint32
 			for m = 0; m < PARAM_M; m++ {
-				cur := parity*PARAM_BC + r*PARAM_M + m
+				cur := parity*(PARAM_BC*PARAM_M) + r*PARAM_M + m
 				res[cur] = ((c+m)%PARAM_B)*PARAM_C + (((2*m+parity)*(2*m+parity) + r) % PARAM_C)
 			}
 		}
@@ -120,6 +120,13 @@ func findMatches(last_table *table, left_bucket, right_bucket Bucket, left_targe
 		}
 		rmap[r].Count += 1
 	}
+	// if left_bucket.StartPosition < 300 {
+	// 	for _, ri := range rmap {
+	// 		if ri.Count > 0 {
+	// 			fmt.Printf("rmap count: %d, startPosition: %d\n", ri.Count, ri.StartPosition)
+	// 		}
+	// 	}
+	// }
 	base = base - PARAM_BC
 	parity := (last_table.Items[left_bucket.StartPosition].y / PARAM_BC) % 2
 	ms = make([]Match, 0)
@@ -129,7 +136,7 @@ func findMatches(last_table *table, left_bucket, right_bucket Bucket, left_targe
 		y := last_table.Items[leftPosition].y
 		r := y - base
 		for m := 0; m < PARAM_M; m++ {
-			rt := left_targets[parity*PARAM_BC+r*PARAM_M+uint32(m)]
+			rt := left_targets[parity*PARAM_BC*PARAM_M+r*PARAM_M+uint32(m)]
 			ritem := rmap[rt]
 			if ritem.Count > 0 {
 				for rightPosition := ritem.StartPosition; rightPosition < ritem.StartPosition+ritem.Count; rightPosition++ {
@@ -160,8 +167,10 @@ func NumMatches(left_y, right_y uint32) (matches uint) {
 }
 
 func ComputeFN(k, tn, pvtn byte, y uint32, left_metadata, right_metadata []byte) (cy uint32, cm []byte) {
-	//parentMetadataBits := MetadataSizeBits(k, pvtn)
-	// fmt.Printf("y: %d, left_m: %v, right_m: %v\n", y, left_metadata, right_metadata)
+	// parentMetadataBits := MetadataSizeBits(k, pvtn)
+	// if y < 1000 {
+	// 	fmt.Printf("y: %d, left_m: %v, right_m: %v\n", y, left_metadata, right_metadata)
+	// }
 	ySizeBits := YSizeBits(k)
 	mdSizeBits := MetadataSizeBits(k, pvtn)
 	yBytes := make([]byte, 4)
@@ -230,13 +239,19 @@ func ComputeFN(k, tn, pvtn byte, y uint32, left_metadata, right_metadata []byte)
 		// 	fmt.Printf("ySizeBits: %d, mdsb: %d,  h: %v\ncm: %v\n", ySizeBits, mdsb, h, cm)
 		// }
 	}
-
+	// if y < 1000 {
+	// 	fmt.Printf("computed y: %d, m: %v\n", cy, cm)
+	// }
 	return
 }
 
 func matchToResult(k, tn, pvtn byte, last_table *table, m Match) tItem {
 	left_metadata := last_table.Metadata(m.LeftPosition)
 	right_metadata := last_table.Metadata(m.RightPosition)
+	// if tn == 2 && m.LeftPosition < 10 {
+	// 	fmt.Printf("lm %v\n", left_metadata)
+	// 	fmt.Printf("rm %v\n", right_metadata)
+	// }
 	y, metadata := ComputeFN(k, tn, pvtn, m.LeftY, left_metadata, right_metadata)
 	return tItem{
 		y:        y,
@@ -256,9 +271,18 @@ func matchAndComputFn(k, tn, pvtn byte, last_table *table, left_bucket, right_bu
 
 	// matches := findMatches(ys[left_bucket.StartPosition:left_bucket.StartPosition+left_bucket.Size], left_bucket.StartPosition, ys[right_bucket.StartPosition:right_bucket.StartPosition+right_bucket.Size], right_bucket.StartPosition, left_targets)
 	matches := findMatches(last_table, left_bucket, right_bucket, left_targets)
+	// if left_bucket.StartPosition < 300 {
+	// 	fmt.Println("left bucket ", left_bucket)
+	// 	fmt.Println("right bucket ", right_bucket)
+	// 	for _, m := range matches {
+	// 		fmt.Printf("  match leftPosition: %d, leftY: %d, rightPosition: %d\n", m.LeftPosition, m.LeftY, m.RightPosition)
+	// 	}
+	// 	fmt.Println()
+	// }
+
 	for _, m := range matches {
-		// if tn == 7 {
-		// 	fmt.Println(m)
+		// if tn == 2 && i == 0 {
+		// 	fmt.Println("match ", m)
 		// }
 		results_table = append(results_table, matchToResult(k, tn, pvtn, last_table, m))
 	}
@@ -269,6 +293,7 @@ func CreateTable1(k byte, seed []byte) *table {
 	len := uint32(1 << k)
 	partialYS := partial_ys(k, seed)
 	t1 := &table{
+		k:     k,
 		n:     1,
 		Items: make([]tItem, len),
 	}
@@ -297,7 +322,7 @@ func (t *table) Position(pos uint32) []uint32 {
 func (t *table) Metadata(pos uint32) []byte {
 	if t.n == 1 {
 		x := t.Items[pos].x
-		n := int(MetadataSizeBytes(k, 1))
+		n := int(MetadataSizeBytes(t.k, 1))
 		bs := make([]byte, 4)
 		binary.BigEndian.PutUint32(bs, x)
 		return bs[len(bs)-n:]
@@ -323,11 +348,13 @@ func CreateTableN(k, tn, pvtn byte, last_table *table, cache *TablesCache) *tabl
 		}
 	}
 	buckets = append(buckets, *bucket)
+	// fmt.Printf("buckets: %v \n", buckets[:8])
 	num_values := 1 << k
 	if len(buckets) < 2 {
 		return &table{}
 	}
 	table := &table{
+		k:     k,
 		n:     tn,
 		Items: make([]tItem, 0, num_values),
 	}

@@ -38,6 +38,7 @@ type BitSlice struct {
 }
 
 type table struct {
+	k     byte
 	n     byte
 	Items []tItem
 }
@@ -53,6 +54,17 @@ func (t *table) YS() []uint32 {
 	r := make([]uint32, len(t.Items))
 	for i, item := range t.Items {
 		r[i] = item.y
+	}
+	return r
+}
+
+func (t *table) XS() []uint32 {
+	if t.n != 1 {
+		return nil
+	}
+	r := make([]uint32, len(t.Items))
+	for i, item := range t.Items {
+		r[i] = item.x
 	}
 	return r
 }
